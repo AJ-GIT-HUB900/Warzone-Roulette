@@ -3,28 +3,326 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Warzone Roulette</title>
-    <link rel="stylesheet" href="style.css">
+    <title>Urzikstan Tactical Overlay | Warzone Drop Roulette [v3.0 - SECURE]</title>
+    <link rel="stylesheet" href="overlay.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Chivo+Mono:wght@300;600&display=swap" rel="stylesheet">
+    
+    <style>
+        #mini-game-overlay {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background-color: #0c0d12; z-index: 9999;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            font-family: 'Chivo Mono', monospace; color: #00ff66; overflow: hidden;
+            transition: opacity 1s ease-out;
+        }
+        .scan-line {
+            position: absolute; width: 100%; height: 5px; background: rgba(0, 255, 102, 0.2);
+            top: 0; left: 0; animation: scan 3s linear infinite; z-index: 10000; pointer-events: none;
+        }
+        @keyframes scan { 0% { top: -10%; } 100% { top: 110%; } }
+        .game-dashboard {
+            display: grid; grid-template-columns: 1fr 2fr 1fr; gap: 20px;
+            width: 95%; max-width: 1600px; height: 80vh;
+            border: 2px solid #00ff66; padding: 20px; background: rgba(0, 20, 0, 0.5);
+            box-shadow: inset 0 0 50px rgba(0, 255, 102, 0.1);
+        }
+        .terminal-column {
+            border: 1px solid rgba(0, 255, 102, 0.3); padding: 15px;
+            font-size: 0.7rem; overflow-y: hidden; position: relative;
+        }
+        .log-line { margin-bottom: 4px; opacity: 0.8; }
+        .log-error { color: #ff3333; }
+        .log-warn { color: #f28b0c; }
+        .log-success { color: #00ff66; font-weight: bold; }
+        
+        .radar-container {
+            border: 1px solid #00ff66; position: relative; display: flex;
+            flex-direction: column; align-items: center; justify-content: flex-start;
+            background: radial-gradient(circle, rgba(0,255,102,0.1) 0%, rgba(0,0,0,1) 100%);
+            padding: 20px;
+        }
+        .game-instructions {
+            text-align: center; margin-bottom: 20px;
+        }
+        .game-instructions h2 { font-size: 1.5rem; text-transform: uppercase; letter-spacing: 2px; text-shadow: 0 0 10px #00ff66;}
+        
+        /* THE MASSIVE GRID STYLING */
+        .radar-grid {
+            display: grid; grid-template-columns: repeat(10, 1fr); grid-template-rows: repeat(10, 1fr);
+            gap: 2px; width: 100%; max-width: 500px; aspect-ratio: 1/1;
+            border: 2px solid rgba(0, 255, 102, 0.5); position: relative;
+        }
+        .radar-grid::before {
+            content: ''; position: absolute; top: 50%; left: 0; width: 100%; height: 1px; background: rgba(0, 255, 102, 0.3); pointer-events: none;
+        }
+        .radar-grid::after {
+            content: ''; position: absolute; left: 50%; top: 0; height: 100%; width: 1px; background: rgba(0, 255, 102, 0.3); pointer-events: none;
+        }
+        .grid-node {
+            background: rgba(0, 255, 102, 0.05); border: 1px solid rgba(0, 255, 102, 0.1);
+            cursor: pointer; transition: all 0.2s; position: relative;
+        }
+        .grid-node:hover { background: rgba(0, 255, 102, 0.4); }
+        .grid-node.target-active {
+            background: rgba(242, 139, 12, 0.8); border-color: #f28b0c;
+            animation: pulse-node 0.5s infinite alternate;
+        }
+        .grid-node.target-secured { background: #00ff66; border-color: #fff; pointer-events: none; }
+        
+        @keyframes pulse-node { from { transform: scale(0.9); box-shadow: 0 0 5px #f28b0c; } to { transform: scale(1.1); box-shadow: 0 0 20px #f28b0c; } }
+        
+        #auth-status-bar {
+            margin-top: 20px; width: 100%; max-width: 500px; height: 30px; border: 2px solid #00ff66; padding: 2px;
+        }
+        #auth-progress { height: 100%; width: 0%; background: #00ff66; transition: width 0.5s ease; }
+        
+        /* SVG Decoration */
+        .decor-svg { position: absolute; opacity: 0.2; pointer-events: none; }
+        .top-right-decor { top: 10px; right: 10px; width: 100px; height: 100px; }
+        .bottom-left-decor { bottom: 10px; left: 10px; width: 150px; height: 50px; }
+    </style>
 </head>
 <body>
-    <div class="container">
-        <h1>☢️ Warzone Roulette ☢️</h1>
-        <p>Let the algorithm decide your fate.</p>
-        
-        <div class="results-card">
-            <h2>Drop Location:</h2>
-            <h3 id="drop-location">???</h3>
-            
-            <hr>
-            
-            <h2>Your Loadout:</h2>
-            <p><strong>Primary:</strong> <span id="primary-weapon">???</span></p>
-            <p><strong>Secondary:</strong> <span id="secondary-weapon">???</span></p>
-        </div>
 
-        <button id="roll-btn">ROLL THE DICE</button>
+    <div id="mini-game-overlay">
+        <div class="scan-line"></div>
+        
+        <svg class="decor-svg top-right-decor" viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="40" stroke="#00ff66" stroke-width="2" fill="none" stroke-dasharray="5,5"/>
+            <circle cx="50" cy="50" r="30" stroke="#00ff66" stroke-width="1" fill="none" />
+            <line x1="50" y1="0" x2="50" y2="100" stroke="#00ff66" stroke-width="1"/>
+            <line x1="0" y1="50" x2="100" y2="50" stroke="#00ff66" stroke-width="1"/>
+            <path d="M 20 20 L 80 80 M 20 80 L 80 20" stroke="#00ff66" stroke-width="0.5"/>
+        </svg>
+
+        <svg class="decor-svg bottom-left-decor" viewBox="0 0 150 50">
+            <rect x="0" y="0" width="150" height="50" fill="none" stroke="#00ff66" stroke-width="2"/>
+            <rect x="5" y="5" width="20" height="40" fill="#00ff66" opacity="0.5"/>
+            <rect x="30" y="5" width="20" height="40" fill="#00ff66" opacity="0.3"/>
+            <rect x="55" y="15" width="20" height="30" fill="#00ff66" opacity="0.8"/>
+            <rect x="80" y="25" width="20" height="20" fill="#00ff66" opacity="0.4"/>
+            <rect x="105" y="10" width="20" height="35" fill="#00ff66" opacity="0.6"/>
+        </svg>
+
+        <div class="game-dashboard">
+            <div class="terminal-column" id="left-log">
+                <div class="log-line">INITIATING BOOT SEQUENCE...</div>
+                <div class="log-line">KERNEL LOADED: v9.4.2_URZ</div>
+                <div class="log-line">MOUNTING VFS... [OK]</div>
+                <div class="log-line">LOADING DRIVERS: SEC_AUTH_MODULE</div>
+                <div class="log-line log-error">ERROR: FIREWALL DETECTED AT PORT 8080</div>
+                <div class="log-line log-warn">WARNING: ENCRYPTION PROTOCOL MISMATCH</div>
+                <div class="log-line">REROUTING SIGNAL THROUGH PROXY NODE 01...</div>
+                <div class="log-line">REROUTING SIGNAL THROUGH PROXY NODE 02...</div>
+                <div class="log-line">REROUTING SIGNAL THROUGH PROXY NODE 03...</div>
+                <div class="log-line">ESTABLISHING UPLINK TO SATELLITE NETWORK...</div>
+                <div class="log-line">PING 192.168.1.1: RESPONSE 24ms</div>
+                <div class="log-line">PING 192.168.1.2: RESPONSE 22ms</div>
+                <div class="log-line">PING 192.168.1.3: RESPONSE 18ms</div>
+                <div class="log-line log-error">UPLINK INTERRUPTED. SIGNAL SCRAMBLED.</div>
+                <div class="log-line">COMMENCING MANUAL OVERRIDE PROTOCOL...</div>
+                <div class="log-line">DECRYPTING PACKETS [0x00A1]...</div>
+                <div class="log-line">DECRYPTING PACKETS [0x00A2]...</div>
+                <div class="log-line">DECRYPTING PACKETS [0x00A3]...</div>
+                <div class="log-line log-warn">MANUAL FREQUENCY TUNING REQUIRED</div>
+                <div class="log-line">AWAITING USER INPUT ON GRID...</div>
+                <br><br><br><br><br><br><br><br><br><br><br><br><br>
+                <div class="log-line">SYS_MONITOR_ACTIVE</div>
+            </div>
+
+            <div class="radar-container">
+                <div class="game-instructions">
+                    <h2>SYSTEM LOCKED</h2>
+                    <p>Intercept 5 scrambling signals on the radar grid to bypass the firewall and deploy the Roulette algorithm.</p>
+                </div>
+                
+                <div class="radar-grid" id="radar-grid-board">
+                    <div class="grid-node" id="n-0-0"></div><div class="grid-node" id="n-0-1"></div><div class="grid-node" id="n-0-2"></div><div class="grid-node" id="n-0-3"></div><div class="grid-node" id="n-0-4"></div><div class="grid-node" id="n-0-5"></div><div class="grid-node" id="n-0-6"></div><div class="grid-node" id="n-0-7"></div><div class="grid-node" id="n-0-8"></div><div class="grid-node" id="n-0-9"></div>
+                    <div class="grid-node" id="n-1-0"></div><div class="grid-node" id="n-1-1"></div><div class="grid-node" id="n-1-2"></div><div class="grid-node" id="n-1-3"></div><div class="grid-node" id="n-1-4"></div><div class="grid-node" id="n-1-5"></div><div class="grid-node" id="n-1-6"></div><div class="grid-node" id="n-1-7"></div><div class="grid-node" id="n-1-8"></div><div class="grid-node" id="n-1-9"></div>
+                    <div class="grid-node" id="n-2-0"></div><div class="grid-node" id="n-2-1"></div><div class="grid-node" id="n-2-2"></div><div class="grid-node" id="n-2-3"></div><div class="grid-node" id="n-2-4"></div><div class="grid-node" id="n-2-5"></div><div class="grid-node" id="n-2-6"></div><div class="grid-node" id="n-2-7"></div><div class="grid-node" id="n-2-8"></div><div class="grid-node" id="n-2-9"></div>
+                    <div class="grid-node" id="n-3-0"></div><div class="grid-node" id="n-3-1"></div><div class="grid-node" id="n-3-2"></div><div class="grid-node" id="n-3-3"></div><div class="grid-node" id="n-3-4"></div><div class="grid-node" id="n-3-5"></div><div class="grid-node" id="n-3-6"></div><div class="grid-node" id="n-3-7"></div><div class="grid-node" id="n-3-8"></div><div class="grid-node" id="n-3-9"></div>
+                    <div class="grid-node" id="n-4-0"></div><div class="grid-node" id="n-4-1"></div><div class="grid-node" id="n-4-2"></div><div class="grid-node" id="n-4-3"></div><div class="grid-node" id="n-4-4"></div><div class="grid-node" id="n-4-5"></div><div class="grid-node" id="n-4-6"></div><div class="grid-node" id="n-4-7"></div><div class="grid-node" id="n-4-8"></div><div class="grid-node" id="n-4-9"></div>
+                    <div class="grid-node" id="n-5-0"></div><div class="grid-node" id="n-5-1"></div><div class="grid-node" id="n-5-2"></div><div class="grid-node" id="n-5-3"></div><div class="grid-node" id="n-5-4"></div><div class="grid-node" id="n-5-5"></div><div class="grid-node" id="n-5-6"></div><div class="grid-node" id="n-5-7"></div><div class="grid-node" id="n-5-8"></div><div class="grid-node" id="n-5-9"></div>
+                    <div class="grid-node" id="n-6-0"></div><div class="grid-node" id="n-6-1"></div><div class="grid-node" id="n-6-2"></div><div class="grid-node" id="n-6-3"></div><div class="grid-node" id="n-6-4"></div><div class="grid-node" id="n-6-5"></div><div class="grid-node" id="n-6-6"></div><div class="grid-node" id="n-6-7"></div><div class="grid-node" id="n-6-8"></div><div class="grid-node" id="n-6-9"></div>
+                    <div class="grid-node" id="n-7-0"></div><div class="grid-node" id="n-7-1"></div><div class="grid-node" id="n-7-2"></div><div class="grid-node" id="n-7-3"></div><div class="grid-node" id="n-7-4"></div><div class="grid-node" id="n-7-5"></div><div class="grid-node" id="n-7-6"></div><div class="grid-node" id="n-7-7"></div><div class="grid-node" id="n-7-8"></div><div class="grid-node" id="n-7-9"></div>
+                    <div class="grid-node" id="n-8-0"></div><div class="grid-node" id="n-8-1"></div><div class="grid-node" id="n-8-2"></div><div class="grid-node" id="n-8-3"></div><div class="grid-node" id="n-8-4"></div><div class="grid-node" id="n-8-5"></div><div class="grid-node" id="n-8-6"></div><div class="grid-node" id="n-8-7"></div><div class="grid-node" id="n-8-8"></div><div class="grid-node" id="n-8-9"></div>
+                    <div class="grid-node" id="n-9-0"></div><div class="grid-node" id="n-9-1"></div><div class="grid-node" id="n-9-2"></div><div class="grid-node" id="n-9-3"></div><div class="grid-node" id="n-9-4"></div><div class="grid-node" id="n-9-5"></div><div class="grid-node" id="n-9-6"></div><div class="grid-node" id="n-9-7"></div><div class="grid-node" id="n-9-8"></div><div class="grid-node" id="n-9-9"></div>
+                </div>
+
+                <div id="auth-status-bar">
+                    <div id="auth-progress"></div>
+                </div>
+                <p id="auth-text" style="margin-top: 10px; font-weight: bold;">AUTHENTICATION PROGRESS: 0%</p>
+            </div>
+
+            <div class="terminal-column" id="right-log">
+                <div class="log-line">-- METRICS MODULE --</div>
+                <div class="log-line">CPU LOAD: 84%</div>
+                <div class="log-line">MEM USAGE: 12GB/16GB</div>
+                <div class="log-line">NET TRAFFIC: 450Mbps [Tx]</div>
+                <div class="log-line">NET TRAFFIC: 12Mbps [Rx]</div>
+                <div class="log-line">--------------------</div>
+                <div class="log-line">SECTOR ALPHA: CLEAR</div>
+                <div class="log-line">SECTOR BRAVO: CLEAR</div>
+                <div class="log-line log-warn">SECTOR CHARLIE: JAMMED</div>
+                <div class="log-line log-error">SECTOR DELTA: COMPROMISED</div>
+                <div class="log-line">SECTOR ECHO: CLEAR</div>
+                <div class="log-line">--------------------</div>
+                <br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br>
+                <div class="log-line">AWAITING GRID SOLUTION...</div>
+            </div>
+        </div>
     </div>
 
-    <script src="script.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const nodes = document.querySelectorAll('.grid-node');
+            const progressFill = document.getElementById('auth-progress');
+            const authText = document.getElementById('auth-text');
+            const leftLog = document.getElementById('left-log');
+            let score = 0;
+            const targetScore = 5;
+            let currentActiveNode = null;
+            let gameInterval = null;
+
+            function addLog(text, className = '') {
+                const div = document.createElement('div');
+                div.className = `log-line ${className}`;
+                div.textContent = `> ${text}`;
+                leftLog.appendChild(div);
+                leftLog.scrollTop = leftLog.scrollHeight;
+            }
+
+            function spawnTarget() {
+                if (currentActiveNode) {
+                    currentActiveNode.classList.remove('target-active');
+                }
+                const randomIndex = Math.floor(Math.random() * nodes.length);
+                currentActiveNode = nodes[randomIndex];
+                
+                // Don't spawn on already secured nodes
+                if(currentActiveNode.classList.contains('target-secured')) {
+                    spawnTarget();
+                    return;
+                }
+                
+                currentActiveNode.classList.add('target-active');
+                addLog(`SCRAMBLER DETECTED AT GRID COORD: ${currentActiveNode.id}`, 'log-warn');
+            }
+
+            nodes.forEach(node => {
+                node.addEventListener('click', (e) => {
+                    if (e.target.classList.contains('target-active')) {
+                        e.target.classList.remove('target-active');
+                        e.target.classList.add('target-secured');
+                        score++;
+                        
+                        const percentage = (score / targetScore) * 100;
+                        progressFill.style.width = `${percentage}%`;
+                        authText.textContent = `AUTHENTICATION PROGRESS: ${percentage}%`;
+                        
+                        addLog(`NODE SECURED. PACKET INTERCEPTED.`, 'log-success');
+
+                        if (score >= targetScore) {
+                            clearInterval(gameInterval);
+                            addLog(`FIREWALL BREACHED. ACCESS GRANTED.`, 'log-success');
+                            authText.textContent = `SYSTEM UNLOCKED. INITIALIZING ROULETTE...`;
+                            authText.style.color = "#00ff66";
+                            
+                            setTimeout(() => {
+                                document.getElementById('mini-game-overlay').style.opacity = '0';
+                                setTimeout(() => {
+                                    document.getElementById('mini-game-overlay').style.display = 'none';
+                                }, 1000);
+                            }, 1500);
+                        } else {
+                            spawnTarget();
+                        }
+                    } else if (!e.target.classList.contains('target-secured')) {
+                        addLog(`INVALID SECTOR. RECALIBRATING...`, 'log-error');
+                    }
+                });
+            });
+
+            // Start game loop
+            addLog(`INITIALIZING RADAR SWEEP...`);
+            setTimeout(() => {
+                spawnTarget();
+                gameInterval = setInterval(() => {
+                    addLog(`SCRAMBLER RELOCATED. SIGNAL LOST.`, 'log-error');
+                    spawnTarget();
+                }, 1500); // Target moves every 1.5 seconds
+            }, 2000);
+        });
+    </script>
+    <div id="app-wrapper">
+        <div id="background-visualizer"></div>
+        <div id="poi-visualization-layer">
+            <div id="visual-target-location" class="poi-marker locked-off"></div>
+            <div id="helicopter-a" class="poi-marker aerial-target active"></div>
+            <div id="helicopter-b" class="poi-marker aerial-target active"></div>
+            <div id="distant-stadium" class="poi-marker fixed-target"></div>
+        </div>
+
+        <main id="main-panel">
+            <header>
+                <div class="header-content">
+                    <div id="meta-ticker" class="status-neutral">OPERATIONAL [Season 3 META Active]</div>
+                    <h1>URZIKSTAN ROULETTE v3.0</h1>
+                    <div id="application-status">AWAITING INPUT...</div>
+                </div>
+                <div class="glitch-line"></div>
+            </header>
+
+            <div class="panel-sections">
+                <section id="locations-panel" class="data-panel">
+                    <h2><span class="prefix">📍</span> Drop Location:</h2>
+                    <div class="panel-content">
+                        <p id="drop-location" class="status-unknown">UNASSIGNED</p>
+                        <div class="poi-visualization-metadata">
+                            <span id="visual-coords">N/A</span> | <span id="visual-terrain">N/A</span>
+                        </div>
+                    </div>
+                </section>
+                
+                <section id="roulette-panel" class="data-panel control-panel">
+                    <h2><span class="prefix">⚙️</span> Control Unit</h2>
+                    <div class="panel-content">
+                        <button id="roll-btn" data-state="idle">
+                            <span class="btn-text">DEPLOY ALGORITHM</span>
+                        </button>
+                        <div id="weapon-display-area" class="results-display locked-off">
+                            <div class="slot-display primary">
+                                <h3>[P] Primary:</h3>
+                                <p id="primary-weapon">???</p>
+                                <span id="primary-role">...</span>
+                            </div>
+                            <div class="slot-display secondary">
+                                <h3>[S] Secondary:</h3>
+                                <p id="secondary-weapon">???</p>
+                                <span id="secondary-role">...</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+                
+                <section id="meta-panel" class="data-panel">
+                    <h2><span class="prefix">📊</span> Intelligence Log</h2>
+                    <div id="session-log" class="panel-content dynamic-log">
+                        <div class="log-entry system-boot">>> SYSTEM INITIALIZED... [PLAYER_UNIT: SNOW_SUIT_CAMO]</div>
+                    </div>
+                </section>
+            </div>
+            
+            <footer>
+                <div class="glitch-line footer-line"></div>
+                <p>Designed for the Urzikstan Theater of Operations. Author: User [Tactical ID: ARCHITECT-7]</p>
+            </footer>
+        </main>
+    </div>
+
+    <script src="engine.js"></script>
 </body>
 </html>
