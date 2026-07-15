@@ -3,326 +3,945 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Urzikstan Tactical Overlay | Warzone Drop Roulette [v3.0 - SECURE]</title>
-    <link rel="stylesheet" href="overlay.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Chivo+Mono:wght@300;600&display=swap" rel="stylesheet">
-    
+    <title>OPERATION: LAST STAND - Tactical Web Engine</title>
     <style>
-        #mini-game-overlay {
-            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            background-color: #0c0d12; z-index: 9999;
-            display: flex; flex-direction: column; justify-content: center; align-items: center;
-            font-family: 'Chivo Mono', monospace; color: #00ff66; overflow: hidden;
-            transition: opacity 1s ease-out;
+        /* =========================================================
+           TACTICAL UI STYLESHEET
+           ========================================================= */
+        @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+
+        :root {
+            --hud-green: #00ff66;
+            --hud-red: #ff3333;
+            --hud-bg: rgba(10, 15, 10, 0.85);
+            --hud-border: rgba(0, 255, 102, 0.3);
         }
-        .scan-line {
-            position: absolute; width: 100%; height: 5px; background: rgba(0, 255, 102, 0.2);
-            top: 0; left: 0; animation: scan 3s linear infinite; z-index: 10000; pointer-events: none;
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
         }
-        @keyframes scan { 0% { top: -10%; } 100% { top: 110%; } }
-        .game-dashboard {
-            display: grid; grid-template-columns: 1fr 2fr 1fr; gap: 20px;
-            width: 95%; max-width: 1600px; height: 80vh;
-            border: 2px solid #00ff66; padding: 20px; background: rgba(0, 20, 0, 0.5);
-            box-shadow: inset 0 0 50px rgba(0, 255, 102, 0.1);
+
+        body {
+            background-color: #050505;
+            color: var(--hud-green);
+            font-family: 'Share Tech Mono', monospace;
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+            cursor: crosshair;
         }
-        .terminal-column {
-            border: 1px solid rgba(0, 255, 102, 0.3); padding: 15px;
-            font-size: 0.7rem; overflow-y: hidden; position: relative;
+
+        /* The Game World */
+        #game-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            background: repeating-linear-gradient(
+                45deg,
+                #0a0a0a,
+                #0a0a0a 10px,
+                #0f0f0f 10px,
+                #0f0f0f 20px
+            );
         }
-        .log-line { margin-bottom: 4px; opacity: 0.8; }
-        .log-error { color: #ff3333; }
-        .log-warn { color: #f28b0c; }
-        .log-success { color: #00ff66; font-weight: bold; }
-        
-        .radar-container {
-            border: 1px solid #00ff66; position: relative; display: flex;
-            flex-direction: column; align-items: center; justify-content: flex-start;
-            background: radial-gradient(circle, rgba(0,255,102,0.1) 0%, rgba(0,0,0,1) 100%);
+
+        /* Screen Glitch Overlay */
+        #scanlines {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            background-size: 100% 2px, 3px 100%;
+            z-index: 5;
+            pointer-events: none;
+            opacity: 0.3;
+        }
+
+        /* Damage Vignette */
+        #damage-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            box-shadow: inset 0 0 0px var(--hud-red);
+            z-index: 4;
+            pointer-events: none;
+            transition: box-shadow 0.1s ease-out;
+        }
+
+        /* =========================================================
+           HUD ELEMENTS (HEADS UP DISPLAY)
+           ========================================================= */
+        #hud-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            pointer-events: none;
             padding: 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
         }
-        .game-instructions {
-            text-align: center; margin-bottom: 20px;
+
+        .hud-panel {
+            background: var(--hud-bg);
+            border: 1px solid var(--hud-border);
+            padding: 15px;
+            border-radius: 4px;
+            backdrop-filter: blur(4px);
         }
-        .game-instructions h2 { font-size: 1.5rem; text-transform: uppercase; letter-spacing: 2px; text-shadow: 0 0 10px #00ff66;}
+
+        /* Top Bar: Match Info */
+        #top-hud {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        #minimap-container {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            border: 2px solid var(--hud-green);
+            overflow: hidden;
+            position: relative;
+            background: rgba(0,20,0,0.5);
+            box-shadow: 0 0 15px rgba(0,255,100,0.2);
+        }
+
+        #wave-info {
+            text-align: center;
+        }
+        #wave-info h1 { font-size: 24px; letter-spacing: 2px; }
+        #wave-info h2 { font-size: 16px; color: #888; }
+
+        #score-board {
+            text-align: right;
+        }
+        .score-val { font-size: 28px; font-weight: bold; }
+
+        /* Bottom Bar: Player Stats */
+        #bottom-hud {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+        }
+
+        #health-armor {
+            width: 300px;
+        }
+        .bar-container {
+            width: 100%;
+            height: 15px;
+            background: #222;
+            margin-top: 5px;
+            border: 1px solid #444;
+            position: relative;
+        }
+        #hp-bar {
+            height: 100%;
+            width: 100%;
+            background: var(--hud-green);
+            transition: width 0.1s linear, background 0.3s;
+        }
         
-        /* THE MASSIVE GRID STYLING */
-        .radar-grid {
-            display: grid; grid-template-columns: repeat(10, 1fr); grid-template-rows: repeat(10, 1fr);
-            gap: 2px; width: 100%; max-width: 500px; aspect-ratio: 1/1;
-            border: 2px solid rgba(0, 255, 102, 0.5); position: relative;
+        #weapon-info {
+            text-align: right;
+            min-width: 250px;
         }
-        .radar-grid::before {
-            content: ''; position: absolute; top: 50%; left: 0; width: 100%; height: 1px; background: rgba(0, 255, 102, 0.3); pointer-events: none;
+        #current-weapon { font-size: 24px; font-weight: bold; color: #fff; }
+        #ammo-count { font-size: 36px; color: var(--hud-green); }
+        #ammo-reserve { font-size: 18px; color: #888; }
+
+        /* Center Screen Elements */
+        #center-screen {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 20;
+            text-align: center;
         }
-        .radar-grid::after {
-            content: ''; position: absolute; left: 50%; top: 0; height: 100%; width: 1px; background: rgba(0, 255, 102, 0.3); pointer-events: none;
+
+        /* Hitmarker Cross */
+        .hitmarker {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 20px;
+            height: 20px;
+            transform: translate(-50%, -50%);
+            opacity: 0;
+            pointer-events: none;
         }
-        .grid-node {
-            background: rgba(0, 255, 102, 0.05); border: 1px solid rgba(0, 255, 102, 0.1);
-            cursor: pointer; transition: all 0.2s; position: relative;
+        .hitmarker::before, .hitmarker::after {
+            content: '';
+            position: absolute;
+            background: white;
         }
-        .grid-node:hover { background: rgba(0, 255, 102, 0.4); }
-        .grid-node.target-active {
-            background: rgba(242, 139, 12, 0.8); border-color: #f28b0c;
-            animation: pulse-node 0.5s infinite alternate;
+        .hitmarker::before { top: 0; left: 9px; width: 2px; height: 20px; transform: rotate(45deg); }
+        .hitmarker::after { top: 9px; left: 0; width: 20px; height: 2px; transform: rotate(45deg); }
+
+        .hit-active { animation: hitFlash 0.2s ease-out; }
+        .kill-active { animation: hitFlash 0.3s ease-out; background: red !important; }
+
+        @keyframes hitFlash {
+            0% { opacity: 1; transform: translate(-50%, -50%) scale(0.5); }
+            50% { transform: translate(-50%, -50%) scale(1.2); }
+            100% { opacity: 0; transform: translate(-50%, -50%) scale(1); }
         }
-        .grid-node.target-secured { background: #00ff66; border-color: #fff; pointer-events: none; }
+
+        /* Menus */
+        #main-menu, #game-over {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
         
-        @keyframes pulse-node { from { transform: scale(0.9); box-shadow: 0 0 5px #f28b0c; } to { transform: scale(1.1); box-shadow: 0 0 20px #f28b0c; } }
-        
-        #auth-status-bar {
-            margin-top: 20px; width: 100%; max-width: 500px; height: 30px; border: 2px solid #00ff66; padding: 2px;
+        .menu-title { font-size: 64px; color: #fff; text-shadow: 0 0 20px var(--hud-green); margin-bottom: 20px; }
+        .btn {
+            background: transparent;
+            border: 2px solid var(--hud-green);
+            color: var(--hud-green);
+            padding: 15px 40px;
+            font-size: 24px;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.2s;
+            text-transform: uppercase;
         }
-        #auth-progress { height: 100%; width: 0%; background: #00ff66; transition: width 0.5s ease; }
-        
-        /* SVG Decoration */
-        .decor-svg { position: absolute; opacity: 0.2; pointer-events: none; }
-        .top-right-decor { top: 10px; right: 10px; width: 100px; height: 100px; }
-        .bottom-left-decor { bottom: 10px; left: 10px; width: 150px; height: 50px; }
+        .btn:hover {
+            background: var(--hud-green);
+            color: #000;
+            box-shadow: 0 0 20px var(--hud-green);
+        }
+
+        .hidden { display: none !important; }
+
     </style>
 </head>
 <body>
 
-    <div id="mini-game-overlay">
-        <div class="scan-line"></div>
-        
-        <svg class="decor-svg top-right-decor" viewBox="0 0 100 100">
-            <circle cx="50" cy="50" r="40" stroke="#00ff66" stroke-width="2" fill="none" stroke-dasharray="5,5"/>
-            <circle cx="50" cy="50" r="30" stroke="#00ff66" stroke-width="1" fill="none" />
-            <line x1="50" y1="0" x2="50" y2="100" stroke="#00ff66" stroke-width="1"/>
-            <line x1="0" y1="50" x2="100" y2="50" stroke="#00ff66" stroke-width="1"/>
-            <path d="M 20 20 L 80 80 M 20 80 L 80 20" stroke="#00ff66" stroke-width="0.5"/>
-        </svg>
+    <div id="scanlines"></div>
+    <div id="damage-overlay"></div>
 
-        <svg class="decor-svg bottom-left-decor" viewBox="0 0 150 50">
-            <rect x="0" y="0" width="150" height="50" fill="none" stroke="#00ff66" stroke-width="2"/>
-            <rect x="5" y="5" width="20" height="40" fill="#00ff66" opacity="0.5"/>
-            <rect x="30" y="5" width="20" height="40" fill="#00ff66" opacity="0.3"/>
-            <rect x="55" y="15" width="20" height="30" fill="#00ff66" opacity="0.8"/>
-            <rect x="80" y="25" width="20" height="20" fill="#00ff66" opacity="0.4"/>
-            <rect x="105" y="10" width="20" height="35" fill="#00ff66" opacity="0.6"/>
-        </svg>
+    <canvas id="game-canvas"></canvas>
 
-        <div class="game-dashboard">
-            <div class="terminal-column" id="left-log">
-                <div class="log-line">INITIATING BOOT SEQUENCE...</div>
-                <div class="log-line">KERNEL LOADED: v9.4.2_URZ</div>
-                <div class="log-line">MOUNTING VFS... [OK]</div>
-                <div class="log-line">LOADING DRIVERS: SEC_AUTH_MODULE</div>
-                <div class="log-line log-error">ERROR: FIREWALL DETECTED AT PORT 8080</div>
-                <div class="log-line log-warn">WARNING: ENCRYPTION PROTOCOL MISMATCH</div>
-                <div class="log-line">REROUTING SIGNAL THROUGH PROXY NODE 01...</div>
-                <div class="log-line">REROUTING SIGNAL THROUGH PROXY NODE 02...</div>
-                <div class="log-line">REROUTING SIGNAL THROUGH PROXY NODE 03...</div>
-                <div class="log-line">ESTABLISHING UPLINK TO SATELLITE NETWORK...</div>
-                <div class="log-line">PING 192.168.1.1: RESPONSE 24ms</div>
-                <div class="log-line">PING 192.168.1.2: RESPONSE 22ms</div>
-                <div class="log-line">PING 192.168.1.3: RESPONSE 18ms</div>
-                <div class="log-line log-error">UPLINK INTERRUPTED. SIGNAL SCRAMBLED.</div>
-                <div class="log-line">COMMENCING MANUAL OVERRIDE PROTOCOL...</div>
-                <div class="log-line">DECRYPTING PACKETS [0x00A1]...</div>
-                <div class="log-line">DECRYPTING PACKETS [0x00A2]...</div>
-                <div class="log-line">DECRYPTING PACKETS [0x00A3]...</div>
-                <div class="log-line log-warn">MANUAL FREQUENCY TUNING REQUIRED</div>
-                <div class="log-line">AWAITING USER INPUT ON GRID...</div>
-                <br><br><br><br><br><br><br><br><br><br><br><br><br>
-                <div class="log-line">SYS_MONITOR_ACTIVE</div>
+    <div id="hud-container" class="hidden">
+        <div id="top-hud">
+            <div id="minimap-container" class="hud-panel">
+                <canvas id="minimap-canvas" width="150" height="150"></canvas>
             </div>
-
-            <div class="radar-container">
-                <div class="game-instructions">
-                    <h2>SYSTEM LOCKED</h2>
-                    <p>Intercept 5 scrambling signals on the radar grid to bypass the firewall and deploy the Roulette algorithm.</p>
-                </div>
-                
-                <div class="radar-grid" id="radar-grid-board">
-                    <div class="grid-node" id="n-0-0"></div><div class="grid-node" id="n-0-1"></div><div class="grid-node" id="n-0-2"></div><div class="grid-node" id="n-0-3"></div><div class="grid-node" id="n-0-4"></div><div class="grid-node" id="n-0-5"></div><div class="grid-node" id="n-0-6"></div><div class="grid-node" id="n-0-7"></div><div class="grid-node" id="n-0-8"></div><div class="grid-node" id="n-0-9"></div>
-                    <div class="grid-node" id="n-1-0"></div><div class="grid-node" id="n-1-1"></div><div class="grid-node" id="n-1-2"></div><div class="grid-node" id="n-1-3"></div><div class="grid-node" id="n-1-4"></div><div class="grid-node" id="n-1-5"></div><div class="grid-node" id="n-1-6"></div><div class="grid-node" id="n-1-7"></div><div class="grid-node" id="n-1-8"></div><div class="grid-node" id="n-1-9"></div>
-                    <div class="grid-node" id="n-2-0"></div><div class="grid-node" id="n-2-1"></div><div class="grid-node" id="n-2-2"></div><div class="grid-node" id="n-2-3"></div><div class="grid-node" id="n-2-4"></div><div class="grid-node" id="n-2-5"></div><div class="grid-node" id="n-2-6"></div><div class="grid-node" id="n-2-7"></div><div class="grid-node" id="n-2-8"></div><div class="grid-node" id="n-2-9"></div>
-                    <div class="grid-node" id="n-3-0"></div><div class="grid-node" id="n-3-1"></div><div class="grid-node" id="n-3-2"></div><div class="grid-node" id="n-3-3"></div><div class="grid-node" id="n-3-4"></div><div class="grid-node" id="n-3-5"></div><div class="grid-node" id="n-3-6"></div><div class="grid-node" id="n-3-7"></div><div class="grid-node" id="n-3-8"></div><div class="grid-node" id="n-3-9"></div>
-                    <div class="grid-node" id="n-4-0"></div><div class="grid-node" id="n-4-1"></div><div class="grid-node" id="n-4-2"></div><div class="grid-node" id="n-4-3"></div><div class="grid-node" id="n-4-4"></div><div class="grid-node" id="n-4-5"></div><div class="grid-node" id="n-4-6"></div><div class="grid-node" id="n-4-7"></div><div class="grid-node" id="n-4-8"></div><div class="grid-node" id="n-4-9"></div>
-                    <div class="grid-node" id="n-5-0"></div><div class="grid-node" id="n-5-1"></div><div class="grid-node" id="n-5-2"></div><div class="grid-node" id="n-5-3"></div><div class="grid-node" id="n-5-4"></div><div class="grid-node" id="n-5-5"></div><div class="grid-node" id="n-5-6"></div><div class="grid-node" id="n-5-7"></div><div class="grid-node" id="n-5-8"></div><div class="grid-node" id="n-5-9"></div>
-                    <div class="grid-node" id="n-6-0"></div><div class="grid-node" id="n-6-1"></div><div class="grid-node" id="n-6-2"></div><div class="grid-node" id="n-6-3"></div><div class="grid-node" id="n-6-4"></div><div class="grid-node" id="n-6-5"></div><div class="grid-node" id="n-6-6"></div><div class="grid-node" id="n-6-7"></div><div class="grid-node" id="n-6-8"></div><div class="grid-node" id="n-6-9"></div>
-                    <div class="grid-node" id="n-7-0"></div><div class="grid-node" id="n-7-1"></div><div class="grid-node" id="n-7-2"></div><div class="grid-node" id="n-7-3"></div><div class="grid-node" id="n-7-4"></div><div class="grid-node" id="n-7-5"></div><div class="grid-node" id="n-7-6"></div><div class="grid-node" id="n-7-7"></div><div class="grid-node" id="n-7-8"></div><div class="grid-node" id="n-7-9"></div>
-                    <div class="grid-node" id="n-8-0"></div><div class="grid-node" id="n-8-1"></div><div class="grid-node" id="n-8-2"></div><div class="grid-node" id="n-8-3"></div><div class="grid-node" id="n-8-4"></div><div class="grid-node" id="n-8-5"></div><div class="grid-node" id="n-8-6"></div><div class="grid-node" id="n-8-7"></div><div class="grid-node" id="n-8-8"></div><div class="grid-node" id="n-8-9"></div>
-                    <div class="grid-node" id="n-9-0"></div><div class="grid-node" id="n-9-1"></div><div class="grid-node" id="n-9-2"></div><div class="grid-node" id="n-9-3"></div><div class="grid-node" id="n-9-4"></div><div class="grid-node" id="n-9-5"></div><div class="grid-node" id="n-9-6"></div><div class="grid-node" id="n-9-7"></div><div class="grid-node" id="n-9-8"></div><div class="grid-node" id="n-9-9"></div>
-                </div>
-
-                <div id="auth-status-bar">
-                    <div id="auth-progress"></div>
-                </div>
-                <p id="auth-text" style="margin-top: 10px; font-weight: bold;">AUTHENTICATION PROGRESS: 0%</p>
+            
+            <div id="wave-info" class="hud-panel">
+                <h1 id="wave-display">WAVE 1</h1>
+                <h2 id="enemies-remaining">TARGETS: 0</h2>
             </div>
-
-            <div class="terminal-column" id="right-log">
-                <div class="log-line">-- METRICS MODULE --</div>
-                <div class="log-line">CPU LOAD: 84%</div>
-                <div class="log-line">MEM USAGE: 12GB/16GB</div>
-                <div class="log-line">NET TRAFFIC: 450Mbps [Tx]</div>
-                <div class="log-line">NET TRAFFIC: 12Mbps [Rx]</div>
-                <div class="log-line">--------------------</div>
-                <div class="log-line">SECTOR ALPHA: CLEAR</div>
-                <div class="log-line">SECTOR BRAVO: CLEAR</div>
-                <div class="log-line log-warn">SECTOR CHARLIE: JAMMED</div>
-                <div class="log-line log-error">SECTOR DELTA: COMPROMISED</div>
-                <div class="log-line">SECTOR ECHO: CLEAR</div>
-                <div class="log-line">--------------------</div>
-                <br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br>
-                <div class="log-line">AWAITING GRID SOLUTION...</div>
+            
+            <div id="score-board" class="hud-panel">
+                <div>SCORE</div>
+                <div id="score-display" class="score-val">000000</div>
+                <div style="margin-top: 10px; color:#888;">MULTIPLIER</div>
+                <div id="multiplier-display" style="color:#fff;">x1.0</div>
             </div>
         </div>
+
+        <div id="center-screen">
+            <div id="hitmarker" class="hitmarker"></div>
+        </div>
+
+        <div id="bottom-hud">
+            <div id="health-armor" class="hud-panel">
+                <div>OPERATOR INTEGRITY</div>
+                <div class="bar-container">
+                    <div id="hp-bar"></div>
+                </div>
+                <div style="margin-top: 10px; font-size: 12px; color: #888;">PRESS [1] [2] [3] TO SWITCH WEAPONS</div>
+            </div>
+
+            <div id="weapon-info" class="hud-panel">
+                <div id="current-weapon">M4A1 ASSAULT</div>
+                <div>
+                    <span id="ammo-count">30</span> 
+                    <span id="ammo-reserve">/ 120</span>
+                </div>
+                <div id="reload-warning" style="color:var(--hud-red); font-size:12px; margin-top:5px; opacity:0;">RELOADING...</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="main-menu">
+        <div class="menu-title">OPERATION: LAST STAND</div>
+        <p style="color:#888; margin-bottom: 40px; text-align: center;">
+            WASD to Move | MOUSE to Aim & Shoot | R to Reload<br>
+            Survive the infinite waves.
+        </p>
+        <button class="btn" id="start-btn">DEPLOY TO AO</button>
+    </div>
+
+    <div id="game-over" class="hidden">
+        <div class="menu-title" style="color:var(--hud-red); text-shadow: 0 0 20px var(--hud-red);">KIA</div>
+        <div style="font-size: 24px; margin-bottom: 10px;">FINAL SCORE: <span id="final-score">0</span></div>
+        <div style="font-size: 18px; color:#888; margin-bottom: 40px;">WAVES CLEARED: <span id="final-wave">0</span></div>
+        <button class="btn" id="restart-btn">REDEPLOY</button>
     </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const nodes = document.querySelectorAll('.grid-node');
-            const progressFill = document.getElementById('auth-progress');
-            const authText = document.getElementById('auth-text');
-            const leftLog = document.getElementById('left-log');
-            let score = 0;
-            const targetScore = 5;
-            let currentActiveNode = null;
-            let gameInterval = null;
+        /**
+         * ENGINE CORE INITIALIZATION
+         */
+        const canvas = document.getElementById('game-canvas');
+        const ctx = canvas.getContext('2d');
+        const minimapCanvas = document.getElementById('minimap-canvas');
+        const mctx = minimapCanvas.getContext('2d');
 
-            function addLog(text, className = '') {
-                const div = document.createElement('div');
-                div.className = `log-line ${className}`;
-                div.textContent = `> ${text}`;
-                leftLog.appendChild(div);
-                leftLog.scrollTop = leftLog.scrollHeight;
+        let width = window.innerWidth;
+        let height = window.innerHeight;
+        canvas.width = width;
+        canvas.height = height;
+
+        window.addEventListener('resize', () => {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            canvas.width = width;
+            canvas.height = height;
+        });
+
+        // DOM Elements
+        const DOM = {
+            mainMenu: document.getElementById('main-menu'),
+            gameOver: document.getElementById('game-over'),
+            hud: document.getElementById('hud-container'),
+            startBtn: document.getElementById('start-btn'),
+            restartBtn: document.getElementById('restart-btn'),
+            hpBar: document.getElementById('hp-bar'),
+            ammoCount: document.getElementById('ammo-count'),
+            ammoReserve: document.getElementById('ammo-reserve'),
+            currentWeapon: document.getElementById('current-weapon'),
+            scoreDisplay: document.getElementById('score-display'),
+            waveDisplay: document.getElementById('wave-display'),
+            enemiesRemaining: document.getElementById('enemies-remaining'),
+            hitmarker: document.getElementById('hitmarker'),
+            damageOverlay: document.getElementById('damage-overlay'),
+            reloadWarning: document.getElementById('reload-warning'),
+            finalScore: document.getElementById('final-score'),
+            finalWave: document.getElementById('final-wave')
+        };
+
+        /**
+         * GAME STATE & CONFIGURATION
+         */
+        const GameState = {
+            isRunning: false,
+            score: 0,
+            wave: 1,
+            frame: 0,
+            camera: { x: 0, y: 0 },
+            mouse: { x: width/2, y: height/2, isDown: false }
+        };
+
+        const keys = { w: false, a: false, s: false, d: false, r: false };
+
+        // Input Listeners
+        window.addEventListener('keydown', (e) => {
+            if (e.key.toLowerCase() in keys) keys[e.key.toLowerCase()] = true;
+            if (e.key === '1') player.equipWeapon(0);
+            if (e.key === '2') player.equipWeapon(1);
+            if (e.key === '3') player.equipWeapon(2);
+        });
+        window.addEventListener('keyup', (e) => {
+            if (e.key.toLowerCase() in keys) keys[e.key.toLowerCase()] = false;
+        });
+        window.addEventListener('mousemove', (e) => {
+            GameState.mouse.x = e.clientX;
+            GameState.mouse.y = e.clientY;
+        });
+        window.addEventListener('mousedown', () => GameState.mouse.isDown = true);
+        window.addEventListener('mouseup', () => GameState.mouse.isDown = false);
+
+        /**
+         * MATH & UTILITY FUNCTIONS
+         */
+        const MathUtils = {
+            distance: (x1, y1, x2, y2) => Math.hypot(x2 - x1, y2 - y1),
+            angle: (x1, y1, x2, y2) => Math.atan2(y2 - y1, x2 - x1),
+            random: (min, max) => Math.random() * (max - min) + min
+        };
+
+        /**
+         * ARMORY (WEAPON DEFINITIONS)
+         */
+        const Armory = [
+            {
+                name: "M4A1 (ASSAULT)",
+                color: "#ccc",
+                damage: 25,
+                fireRate: 8, // Frames between shots
+                bulletSpeed: 20,
+                spread: 0.05,
+                magSize: 30,
+                reloadTime: 90, // Frames
+                auto: true
+            },
+            {
+                name: "LOCKWOOD 680 (SHOTGUN)",
+                color: "#a55",
+                damage: 15, // Per pellet
+                fireRate: 45,
+                bulletSpeed: 15,
+                spread: 0.25,
+                pellets: 8,
+                magSize: 8,
+                reloadTime: 120,
+                auto: false
+            },
+            {
+                name: "KATT-AMR (SNIPER)",
+                color: "#5a5",
+                damage: 150,
+                fireRate: 70,
+                bulletSpeed: 35,
+                spread: 0.01,
+                magSize: 5,
+                reloadTime: 150,
+                auto: false,
+                pierce: true // Goes through enemies
             }
+        ];
 
-            function spawnTarget() {
-                if (currentActiveNode) {
-                    currentActiveNode.classList.remove('target-active');
-                }
-                const randomIndex = Math.floor(Math.random() * nodes.length);
-                currentActiveNode = nodes[randomIndex];
-                
-                // Don't spawn on already secured nodes
-                if(currentActiveNode.classList.contains('target-secured')) {
-                    spawnTarget();
-                    return;
-                }
-                
-                currentActiveNode.classList.add('target-active');
-                addLog(`SCRAMBLER DETECTED AT GRID COORD: ${currentActiveNode.id}`, 'log-warn');
+        /**
+         * ENTITY CLASSES
+         */
+
+        // 1. Particle System (Blood, Sparks, Casings)
+        class Particle {
+            constructor(x, y, color, speed, size, life, angle) {
+                this.x = x; this.y = y;
+                this.color = color;
+                this.size = size;
+                this.life = life;
+                this.maxLife = life;
+                this.vx = Math.cos(angle) * speed;
+                this.vy = Math.sin(angle) * speed;
+                this.friction = 0.95;
             }
+            update() {
+                this.vx *= this.friction;
+                this.vy *= this.friction;
+                this.x += this.vx;
+                this.y += this.vy;
+                this.life--;
+            }
+            draw(ctx, camX, camY) {
+                ctx.globalAlpha = this.life / this.maxLife;
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x - camX, this.y - camY, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1;
+            }
+        }
 
-            nodes.forEach(node => {
-                node.addEventListener('click', (e) => {
-                    if (e.target.classList.contains('target-active')) {
-                        e.target.classList.remove('target-active');
-                        e.target.classList.add('target-secured');
-                        score++;
-                        
-                        const percentage = (score / targetScore) * 100;
-                        progressFill.style.width = `${percentage}%`;
-                        authText.textContent = `AUTHENTICATION PROGRESS: ${percentage}%`;
-                        
-                        addLog(`NODE SECURED. PACKET INTERCEPTED.`, 'log-success');
+        // 2. Projectile System
+        class Bullet {
+            constructor(x, y, angle, weaponStats) {
+                this.x = x; this.y = y;
+                // Add spread
+                const finalAngle = angle + (Math.random() - 0.5) * weaponStats.spread;
+                this.vx = Math.cos(finalAngle) * weaponStats.bulletSpeed;
+                this.vy = Math.sin(finalAngle) * weaponStats.bulletSpeed;
+                this.damage = weaponStats.damage;
+                this.pierce = weaponStats.pierce || false;
+                this.life = 100; // Frames before despawn
+                this.hitEntities = new Set(); // For piercing
+            }
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.life--;
+                
+                // Trail effect
+                particles.push(new Particle(this.x, this.y, '#ffea00', 0, 1.5, 10, 0));
+            }
+            draw(ctx, camX, camY) {
+                ctx.fillStyle = '#ffea00';
+                ctx.beginPath();
+                ctx.arc(this.x - camX, this.y - camY, 2, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
 
-                        if (score >= targetScore) {
-                            clearInterval(gameInterval);
-                            addLog(`FIREWALL BREACHED. ACCESS GRANTED.`, 'log-success');
-                            authText.textContent = `SYSTEM UNLOCKED. INITIALIZING ROULETTE...`;
-                            authText.style.color = "#00ff66";
-                            
-                            setTimeout(() => {
-                                document.getElementById('mini-game-overlay').style.opacity = '0';
-                                setTimeout(() => {
-                                    document.getElementById('mini-game-overlay').style.display = 'none';
-                                }, 1000);
-                            }, 1500);
-                        } else {
-                            spawnTarget();
-                        }
-                    } else if (!e.target.classList.contains('target-secured')) {
-                        addLog(`INVALID SECTOR. RECALIBRATING...`, 'log-error');
+        // 3. Enemy AI
+        class Zombie {
+            constructor(x, y, health, speed, radius) {
+                this.x = x; this.y = y;
+                this.health = health;
+                this.maxHealth = health;
+                this.speed = speed;
+                this.radius = radius;
+                this.color = '#800000';
+            }
+            update(targetX, targetY) {
+                const angle = MathUtils.angle(this.x, this.y, targetX, targetY);
+                this.x += Math.cos(angle) * this.speed;
+                this.y += Math.sin(angle) * this.speed;
+
+                // Collision with other zombies to prevent stacking
+                for (let other of enemies) {
+                    if (other === this) continue;
+                    const dist = MathUtils.distance(this.x, this.y, other.x, other.y);
+                    if (dist < this.radius * 2) {
+                        const pushAngle = MathUtils.angle(other.x, other.y, this.x, this.y);
+                        this.x += Math.cos(pushAngle) * 0.5;
+                        this.y += Math.sin(pushAngle) * 0.5;
                     }
-                });
+                }
+            }
+            draw(ctx, camX, camY) {
+                const drawX = this.x - camX;
+                const drawY = this.y - camY;
+
+                // Shadow
+                ctx.fillStyle = 'rgba(0,0,0,0.5)';
+                ctx.beginPath();
+                ctx.arc(drawX + 3, drawY + 3, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Body
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(drawX, drawY, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Outline
+                ctx.strokeStyle = '#400000';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // Health bar if damaged
+                if (this.health < this.maxHealth) {
+                    ctx.fillStyle = 'red';
+                    ctx.fillRect(drawX - 10, drawY - this.radius - 8, 20, 3);
+                    ctx.fillStyle = '#00ff00';
+                    ctx.fillRect(drawX - 10, drawY - this.radius - 8, 20 * (this.health / this.maxHealth), 3);
+                }
+            }
+        }
+
+        // 4. The Player
+        class Player {
+            constructor() {
+                this.x = 0;
+                this.y = 0;
+                this.radius = 15;
+                this.speed = 4;
+                this.maxHealth = 100;
+                this.health = this.maxHealth;
+                this.weapons = JSON.parse(JSON.stringify(Armory)); // Deep copy to manage ammo
+                this.weapons.forEach(w => w.ammo = w.magSize);
+                this.currentWeaponIndex = 0;
+                this.cooldown = 0;
+                this.isReloading = false;
+                this.reloadTimer = 0;
+                this.triggerReleased = true; // For semi-auto
+            }
+
+            get weapon() { return this.weapons[this.currentWeaponIndex]; }
+
+            equipWeapon(index) {
+                if (this.isReloading || index >= this.weapons.length || index === this.currentWeaponIndex) return;
+                this.currentWeaponIndex = index;
+                this.cooldown = 10; // Swap delay
+                this.updateHUD();
+            }
+
+            takeDamage(amount) {
+                this.health -= amount;
+                DOM.damageOverlay.style.boxShadow = `inset 0 0 ${amount * 10}px var(--hud-red)`;
+                setTimeout(() => DOM.damageOverlay.style.boxShadow = 'inset 0 0 0px var(--hud-red)', 150);
+                this.updateHUD();
+                
+                if (this.health <= 0) endGame();
+            }
+
+            update() {
+                // Movement
+                let dx = 0; let dy = 0;
+                if (keys.w) dy -= 1;
+                if (keys.s) dy += 1;
+                if (keys.a) dx -= 1;
+                if (keys.d) dx += 1;
+
+                // Normalize diagonal movement
+                if (dx !== 0 && dy !== 0) {
+                    const length = Math.sqrt(dx*dx + dy*dy);
+                    dx /= length; dy /= length;
+                }
+
+                this.x += dx * this.speed;
+                this.y += dy * this.speed;
+
+                // Camera follow logic
+                GameState.camera.x = this.x - width / 2;
+                GameState.camera.y = this.y - height / 2;
+
+                // Gun Mechanics
+                if (this.cooldown > 0) this.cooldown--;
+
+                if (keys.r && !this.isReloading && this.weapon.ammo < this.weapon.magSize) {
+                    this.isReloading = true;
+                    this.reloadTimer = this.weapon.reloadTime;
+                    DOM.reloadWarning.style.opacity = 1;
+                }
+
+                if (this.isReloading) {
+                    this.reloadTimer--;
+                    if (this.reloadTimer <= 0) {
+                        this.isReloading = false;
+                        this.weapon.ammo = this.weapon.magSize;
+                        DOM.reloadWarning.style.opacity = 0;
+                        this.updateHUD();
+                    }
+                } else {
+                    // Shooting Logic
+                    if (GameState.mouse.isDown) {
+                        if (this.weapon.auto || this.triggerReleased) {
+                            if (this.cooldown === 0 && this.weapon.ammo > 0) {
+                                this.shoot();
+                                this.weapon.ammo--;
+                                this.cooldown = this.weapon.fireRate;
+                                if (!this.weapon.auto) this.triggerReleased = false;
+                                this.updateHUD();
+                            } else if (this.weapon.ammo <= 0 && !this.isReloading) {
+                                // Auto reload on empty
+                                this.isReloading = true;
+                                this.reloadTimer = this.weapon.reloadTime;
+                                DOM.reloadWarning.style.opacity = 1;
+                            }
+                        }
+                    } else {
+                        this.triggerReleased = true;
+                    }
+                }
+
+                // Health Regen (Out of combat)
+                if (GameState.frame % 60 === 0 && this.health < this.maxHealth) {
+                    this.health = Math.min(this.maxHealth, this.health + 2);
+                    this.updateHUD();
+                }
+            }
+
+            shoot() {
+                const angle = MathUtils.angle(width/2, height/2, GameState.mouse.x, GameState.mouse.y);
+                
+                // Screen shake effect
+                ctx.translate((Math.random()-0.5)*5, (Math.random()-0.5)*5);
+
+                // Shotgun logic
+                if (this.weapon.pellets) {
+                    for(let i=0; i < this.weapon.pellets; i++) {
+                        bullets.push(new Bullet(this.x, this.y, angle, this.weapon));
+                    }
+                } else {
+                    bullets.push(new Bullet(this.x, this.y, angle, this.weapon));
+                }
+
+                // Muzzle flash particle
+                particles.push(new Particle(
+                    this.x + Math.cos(angle)*20, 
+                    this.y + Math.sin(angle)*20, 
+                    '#ffffaa', 2, 5, 5, angle + (Math.random()-0.5)
+                ));
+            }
+
+            draw(ctx, camX, camY) {
+                const drawX = this.x - camX;
+                const drawY = this.y - camY;
+                const angle = MathUtils.angle(width/2, height/2, GameState.mouse.x, GameState.mouse.y);
+
+                ctx.save();
+                ctx.translate(drawX, drawY);
+                ctx.rotate(angle);
+
+                // Draw Gun
+                ctx.fillStyle = this.weapon.color;
+                ctx.fillRect(10, -3, 20, 6);
+
+                // Draw Player Body
+                ctx.fillStyle = '#4a5';
+                ctx.beginPath();
+                ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#253';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                ctx.restore();
+            }
+
+            updateHUD() {
+                DOM.hpBar.style.width = `${(this.health / this.maxHealth) * 100}%`;
+                if(this.health < 30) DOM.hpBar.style.background = 'var(--hud-red)';
+                else DOM.hpBar.style.background = 'var(--hud-green)';
+
+                DOM.currentWeapon.textContent = this.weapon.name;
+                DOM.ammoCount.textContent = this.weapon.ammo;
+                DOM.ammoReserve.textContent = `/ INF`;
+            }
+        }
+
+        /**
+         * GLOBAL ARRAYS
+         */
+        let player;
+        let bullets = [];
+        let enemies = [];
+        let particles = [];
+
+        /**
+         * CORE LOGIC & SYSTEMS
+         */
+        function spawnWave() {
+            GameState.wave++;
+            DOM.waveDisplay.textContent = `WAVE ${GameState.wave}`;
+            
+            const numEnemies = 5 + (GameState.wave * 3);
+            for (let i = 0; i < numEnemies; i++) {
+                // Spawn in a circle outside screen view
+                const angle = Math.random() * Math.PI * 2;
+                const distance = Math.max(width, height) + 200 + Math.random() * 500;
+                const ex = player.x + Math.cos(angle) * distance;
+                const ey = player.y + Math.sin(angle) * distance;
+                
+                // Scaling difficulty
+                const hp = 50 + (GameState.wave * 15);
+                const speed = MathUtils.random(1.5, 3.0) + (GameState.wave * 0.1);
+                const radius = MathUtils.random(12, 18);
+                
+                enemies.push(new Zombie(ex, ey, hp, Math.min(speed, 5.5), radius));
+            }
+            DOM.enemiesRemaining.textContent = `TARGETS: ${enemies.length}`;
+        }
+
+        function triggerHitmarker(isKill) {
+            DOM.hitmarker.classList.remove('hit-active', 'kill-active');
+            void DOM.hitmarker.offsetWidth; // Trigger reflow to restart animation
+            DOM.hitmarker.classList.add(isKill ? 'kill-active' : 'hit-active');
+        }
+
+        function spawnBlood(x, y, angle) {
+            for(let i=0; i<8; i++) {
+                particles.push(new Particle(
+                    x, y, 
+                    Math.random() > 0.5 ? '#800' : '#c00', 
+                    MathUtils.random(2, 6), 
+                    MathUtils.random(2, 5), 
+                    MathUtils.random(15, 30), 
+                    angle + (Math.random()-0.5) * 1.5
+                ));
+            }
+        }
+
+        function updateScore(points) {
+            GameState.score += points;
+            DOM.scoreDisplay.textContent = GameState.score.toString().padStart(6, '0');
+        }
+
+        function drawGrid(camX, camY) {
+            ctx.strokeStyle = 'rgba(0, 255, 100, 0.05)';
+            ctx.lineWidth = 1;
+            const gridSize = 100;
+            const startX = -camX % gridSize;
+            const startY = -camY % gridSize;
+
+            ctx.beginPath();
+            for (let x = startX; x < width; x += gridSize) {
+                ctx.moveTo(x, 0); ctx.lineTo(x, height);
+            }
+            for (let y = startY; y < height; y += gridSize) {
+                ctx.moveTo(0, y); ctx.lineTo(width, y);
+            }
+            ctx.stroke();
+        }
+
+        function drawMinimap() {
+            mctx.clearRect(0, 0, 150, 150);
+            
+            // Draw radar circle
+            mctx.strokeStyle = 'rgba(0, 255, 100, 0.3)';
+            mctx.beginPath();
+            mctx.arc(75, 75, 74, 0, Math.PI*2);
+            mctx.stroke();
+
+            // Draw scanning line
+            const scanAngle = (GameState.frame % 120) / 120 * Math.PI * 2;
+            mctx.beginPath();
+            mctx.moveTo(75, 75);
+            mctx.lineTo(75 + Math.cos(scanAngle)*75, 75 + Math.sin(scanAngle)*75);
+            mctx.strokeStyle = 'rgba(0, 255, 100, 0.8)';
+            mctx.stroke();
+
+            const scale = 0.03; // minimap scale factor
+            
+            // Draw Enemies (Red dots)
+            mctx.fillStyle = '#f33';
+            enemies.forEach(e => {
+                const relX = (e.x - player.x) * scale;
+                const relY = (e.y - player.y) * scale;
+                if(Math.hypot(relX, relY) < 70) {
+                    mctx.beginPath();
+                    mctx.arc(75 + relX, 75 + relY, 2, 0, Math.PI*2);
+                    mctx.fill();
+                }
             });
 
-            // Start game loop
-            addLog(`INITIALIZING RADAR SWEEP...`);
-            setTimeout(() => {
-                spawnTarget();
-                gameInterval = setInterval(() => {
-                    addLog(`SCRAMBLER RELOCATED. SIGNAL LOST.`, 'log-error');
-                    spawnTarget();
-                }, 1500); // Target moves every 1.5 seconds
-            }, 2000);
-        });
-    </script>
-    <div id="app-wrapper">
-        <div id="background-visualizer"></div>
-        <div id="poi-visualization-layer">
-            <div id="visual-target-location" class="poi-marker locked-off"></div>
-            <div id="helicopter-a" class="poi-marker aerial-target active"></div>
-            <div id="helicopter-b" class="poi-marker aerial-target active"></div>
-            <div id="distant-stadium" class="poi-marker fixed-target"></div>
-        </div>
+            // Draw Player (Green dot center)
+            mctx.fillStyle = '#0f6';
+            mctx.beginPath();
+            mctx.arc(75, 75, 3, 0, Math.PI*2);
+            mctx.fill();
+        }
 
-        <main id="main-panel">
-            <header>
-                <div class="header-content">
-                    <div id="meta-ticker" class="status-neutral">OPERATIONAL [Season 3 META Active]</div>
-                    <h1>URZIKSTAN ROULETTE v3.0</h1>
-                    <div id="application-status">AWAITING INPUT...</div>
-                </div>
-                <div class="glitch-line"></div>
-            </header>
+        /**
+         * THE MASTER GAME LOOP
+         */
+        function gameLoop() {
+            if (!GameState.isRunning) return;
+            GameState.frame++;
 
-            <div class="panel-sections">
-                <section id="locations-panel" class="data-panel">
-                    <h2><span class="prefix">📍</span> Drop Location:</h2>
-                    <div class="panel-content">
-                        <p id="drop-location" class="status-unknown">UNASSIGNED</p>
-                        <div class="poi-visualization-metadata">
-                            <span id="visual-coords">N/A</span> | <span id="visual-terrain">N/A</span>
-                        </div>
-                    </div>
-                </section>
-                
-                <section id="roulette-panel" class="data-panel control-panel">
-                    <h2><span class="prefix">⚙️</span> Control Unit</h2>
-                    <div class="panel-content">
-                        <button id="roll-btn" data-state="idle">
-                            <span class="btn-text">DEPLOY ALGORITHM</span>
-                        </button>
-                        <div id="weapon-display-area" class="results-display locked-off">
-                            <div class="slot-display primary">
-                                <h3>[P] Primary:</h3>
-                                <p id="primary-weapon">???</p>
-                                <span id="primary-role">...</span>
-                            </div>
-                            <div class="slot-display secondary">
-                                <h3>[S] Secondary:</h3>
-                                <p id="secondary-weapon">???</p>
-                                <span id="secondary-role">...</span>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-                
-                <section id="meta-panel" class="data-panel">
-                    <h2><span class="prefix">📊</span> Intelligence Log</h2>
-                    <div id="session-log" class="panel-content dynamic-log">
-                        <div class="log-entry system-boot">>> SYSTEM INITIALIZED... [PLAYER_UNIT: SNOW_SUIT_CAMO]</div>
-                    </div>
-                </section>
-            </div>
+            // 1. Clear Screen
+            ctx.clearRect(0, 0, width, height);
+            drawGrid(GameState.camera.x, GameState.camera.y);
+
+            // 2. Update & Draw Player
+            player.update();
+            player.draw(ctx, GameState.camera.x, GameState.camera.y);
+
+            // 3. Update & Draw Bullets
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                const b = bullets[i];
+                b.update();
+                b.draw(ctx, GameState.camera.x, GameState.camera.y);
+                if (b.life <= 0) bullets.splice(i, 1);
+            }
+
+            // 4. Update & Draw Particles
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.update();
+                p.draw(ctx, GameState.camera.x, GameState.camera.y);
+                if (p.life <= 0) particles.splice(i, 1);
+            }
+
+            // 5. Update & Draw Enemies + Collision Logic
+            for (let i = enemies.length - 1; i >= 0; i--) {
+                const e = enemies[i];
+                e.update(player.x, player.y);
+                e.draw(ctx, GameState.camera.x, GameState.camera.y);
+
+                // Check collision with player
+                if (MathUtils.distance(player.x, player.y, e.x, e.y) < player.radius + e.radius) {
+                    player.takeDamage(1); // Damage per frame while touching
+                }
+
+                // Check collision with bullets
+                for (let j = bullets.length - 1; j >= 0; j--) {
+                    const b = bullets[j];
+                    if (b.hitEntities.has(e)) continue; // Already hit this guy (piercing)
+
+                    if (MathUtils.distance(b.x, b.y, e.x, e.y) < e.radius + 5) {
+                        e.health -= b.damage;
+                        spawnBlood(e.x, e.y, MathUtils.angle(b.x, b.y, e.x, e.y));
+                        updateScore(10);
+                        
+                        if (e.health <= 0) {
+                            triggerHitmarker(true);
+                            enemies.splice(i, 1);
+                            updateScore(100);
+                            DOM.enemiesRemaining.textContent = `TARGETS: ${enemies.length}`;
+                        } else {
+                            triggerHitmarker(false);
+                        }
+
+                        if (!b.pierce) {
+                            bullets.splice(j, 1);
+                        } else {
+                            b.hitEntities.add(e);
+                        }
+                        break; // bullet hit, move to next enemy
+                    }
+                }
+            }
+
+            // 6. Wave Management
+            if (enemies.length === 0) {
+                spawnWave();
+            }
+
+            // 7. Update Minimap (every 3 frames for perf)
+            if(GameState.frame % 3 === 0) drawMinimap();
+
+            // Loop
+            requestAnimationFrame(gameLoop);
+        }
+
+        /**
+         * GAME STATE CONTROLLERS
+         */
+        function initGame() {
+            player = new Player();
+            bullets = [];
+            enemies = [];
+            particles = [];
             
-            <footer>
-                <div class="glitch-line footer-line"></div>
-                <p>Designed for the Urzikstan Theater of Operations. Author: User [Tactical ID: ARCHITECT-7]</p>
-            </footer>
-        </main>
-    </div>
+            GameState.score = 0;
+            GameState.wave = 0;
+            GameState.frame = 0;
+            
+            updateScore(0);
+            player.updateHUD();
+            spawnWave();
+            
+            DOM.mainMenu.classList.add('hidden');
+            DOM.gameOver.classList.add('hidden');
+            DOM.hud.classList.remove('hidden');
+            
+            GameState.isRunning = true;
+            gameLoop();
+        }
 
-    <script src="engine.js"></script>
+        function endGame() {
+            GameState.isRunning = false;
+            DOM.hud.classList.add('hidden');
+            DOM.gameOver.classList.remove('hidden');
+            DOM.finalScore.textContent = GameState.score;
+            DOM.finalWave.textContent = GameState.wave;
+        }
+
+        // Event Bindings
+        DOM.startBtn.addEventListener('click', initGame);
+        DOM.restartBtn.addEventListener('click', initGame);
+
+    </script>
 </body>
 </html>
