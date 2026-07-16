@@ -3,7 +3,7 @@ Warzone-Roulette
 
 A lightweight, browser-based randomized generator for Call of Duty: Warzone. When your squad cannot agree on a drop spot or you want to challenge yourselves with chaotic weapon combinations, this tool makes the tactical decisions for you.
 
-## Features
+## Features 
 
 * **Drop Randomizer:** Instantly selects a landing zone from the current Warzone map.
 * **Loadout Generator:** Forces a random Primary and Secondary weapon combination.
